@@ -1,7 +1,4 @@
-import bin_trans
 import numpy as np
-import math
-import csv
 import sys
 import os
 
@@ -19,17 +16,17 @@ def set_src(file_dest, values, number_of_sample_list):
 
 if __name__ == "__main__":
 
-    #values = [0+1j, -1+0j, 0+-1j, 1+0j]
-    values = [-1+0j, 0+-1j, 1+0j, 0+1j]
-    #values = [0+-1j, 1+0j, 0+1j, -1+0j]
-    #values = [1+0j, 0+1j, -1+0j, 0+-1j]
-    number_of_sample_list = [100000, 100000, 100000, 100000]
+    #values = [1+0j, 0+1j, -1+0j, 0+-1j, 1+0j, 0+1j, -1+0j, 0+-1j, 1+0j]
+    #values = [0+1j, -1+0j, 0+-1j, 1+0j, 0+1j, -1+0j, 0-1j, 1+0j, 0+1j]
+    #values = [-1+0j, 0+-1j, 1+0j, 0+1j, -1+0j, 0+-1j, 1+0j, 0+1j, -1+0j]
+    #values = [0+-1j, 1+0j, 0+1j, -1+0j, 0+-1j, 1+0j, 0+1j, -1+0j, 0-1j]
+    
+    number_of_sample_list = [200000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000]
     sample_rate = 2000000
-    get_period_sec = 0.0001
 
     file_name = sys.argv[1]
     # sample_rate = (float)(sys.argv[1])
     # get_period_sec = (float)(sys.argv[2])
 
-    set_src(file_name, values, number_of_sample_list)
-    # bin2float.bin2float_data(file_name, sample_rate, get_period_sec)
+    #set_src(file_name, values, number_of_sample_list)
+    set_src('11.15_test/' + file_name, values, number_of_sample_list)
