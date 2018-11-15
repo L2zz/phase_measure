@@ -35,8 +35,8 @@ def get_float_data(file_name, sample_rate, get_period_sec):
             time_pass = (float)(i / sample_rate)
             
             csv_wr.writerow([instant, avg])
-            txt_file.write('%5.3f(s)> instant: %6.3f\n'%(time_pass, instant))
-            txt_file.write('%5.3f(s)> avg: %6.3f\n'%(time_pass, avg))
+            txt_file.write('%5.4f(s)> instant: %6.3f\n'%(time_pass, instant))
+            txt_file.write('%5.4f(s)> avg: %10.3f\n\n'%(time_pass, avg))
             avg = 0.0
     
     csv_file.close()
@@ -73,7 +73,7 @@ def get_complex_data(file_name, sample_rate, get_period_sec):
             time_pass = (float)(i / sample_rate)
             
             csv_wr.writerow([real, imag, real_avg, imag_avg])
-            txt_file.write('%5.3f(s)> real: %6.3f \t\timag: %6.3f\n' \
+            txt_file.write('%5.3f(s)> real: %10.3f \t\timag: %6.3f\n' \
                             %(time_pass, real, imag))
             txt_file.write('%5.3f(s)> real_avg: %6.3f \t\timag_avg: %6.3f\n\n' \
                             %(time_pass, real_avg, imag_avg))
@@ -87,23 +87,33 @@ def get_complex_data(file_name, sample_rate, get_period_sec):
 def get_degree(file_name):
 
     # Set source file's location
-    src = open('../csv/' + file_name + '.csv', 'r', encoding='utf-8')
+    src = open('../csv/' + file_name + '_phase.csv', 'r', encoding='utf-8')
     rdr = csv.reader(src)
 
     # Set data file's location to save
     dest = open('../csv/' + file_name + '_deg.csv', 'w', newline='')
     wr = csv.writer(dest, delimiter=',')
 
+    r_dest = open('../csv/' + file_name + '_rldeg.csv', 'w', newline='')
+    rwr = csv.writer(r_dest, delimiter=',')
+    
+    # To get vartiation of degree
+    prev_instant_deg = 0.0
+    prev_avg_deg = 0.0
     for line in rdr:
-        real = line[0]
-        imag = line[1]
-        real_avg = line[2]
-        imag_avg = line[3]
-        wr.writerow([math.radians(complex(real,imag)), \
-                     math.radians(complex(real_avg, imag_avg))])
+        instant = float(line[0])
+        avg = float(line[1])
+        instant_deg = math.degrees(instant)
+        avg_deg = math.degrees(avg)
+        
+        wr.writerow([instant_deg, avg_deg])
+        rwr.writerow([instant_deg - prev_instant_deg, avg_deg - prev_avg_deg])
+        prev_instant_deg = instant_deg
+        prev_avg_deg = avg_deg
 
     src.close()
     dest.close()
+    r_dest.close()
 
 
 if __name__ == '__main__':
