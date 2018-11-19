@@ -1,14 +1,17 @@
-import numpy as np
 import sys
 import os
+import numpy as np
 
+#
+# Make binary file to control signal
+#
 def set_src(file_dest, values, number_of_sample_list):
     
     src_list = []
 
-    for ith_val in range(len(values)):
-        for count in range(number_of_sample_list[ith_val]):
-            src_list.append(values[ith_val])
+    for i in range(len(values)):
+        for count in range(number_of_sample_list[i]):
+            src_list.append(values[i])
    
     src_list_np = np.asarray(src_list, dtype=np.complex64)
     src_list_np.tofile('../result/' + file_dest)     
@@ -28,5 +31,4 @@ if __name__ == "__main__":
     # sample_rate = (float)(sys.argv[1])
     # get_period_sec = (float)(sys.argv[2])
 
-    #set_src(file_name, values, number_of_sample_list)
-    set_src('11.15_test/' + file_name, values, number_of_sample_list)
+    set_src(file_name, values, number_of_sample_list)
