@@ -3,6 +3,10 @@ import math
 import csv
 import sys
 
+#
+# Make csv/txt files save the instant and average values of float number
+# Use to get phase, amplitude
+#
 def get_float_data(file_name, sample_rate, get_period_sec):
     
     # Set source file's location
@@ -42,7 +46,10 @@ def get_float_data(file_name, sample_rate, get_period_sec):
     csv_file.close()
     txt_file.close()
 
-
+#
+# Make csv/txt files save the instant and average values of complex number
+# Use to get I/Q values
+#
 def get_complex_data(file_name, sample_rate, get_period_sec):
 
     # Set source file's location
@@ -83,7 +90,9 @@ def get_complex_data(file_name, sample_rate, get_period_sec):
     csv_file.close()
     txt_file.close()
 
-
+#
+# Transform radian to degree and save value
+#
 def get_degree(file_name):
 
     # Set source file's location
@@ -130,11 +139,8 @@ if __name__ == '__main__':
     get_period_sec = 0.0001
 
     # Get datas
-    #get_complex_data(file_name, sample_rate, get_period_sec)
-    #get_float_data(file_name + '_phase', sample_rate, get_period_sec)
-    #get_degree(file_name)
-    get_complex_data('11.15_test/' + file_name, sample_rate, get_period_sec)
-    get_float_data('11.15_test/' + file_name + '_phase', sample_rate, get_period_sec)
-    get_degree('11.15_test/' + file_name)
+    get_complex_data(file_name, sample_rate, get_period_sec)
+    get_float_data(file_name + '_phase', sample_rate, get_period_sec)
+    get_degree(file_name)
 
 
