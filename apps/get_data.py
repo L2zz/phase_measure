@@ -9,9 +9,10 @@ FLUCTUATION_PADDING = 0.1 * math.pi
 VARIATION_OF_FLUCTUATION_MIN = math.pi - FLUCTUATION_PADDING
 VARIATION_OF_FLUCTUATION_MAX = math.pi + FLUCTUATION_PADDING
 
-START_SIGNAL_PADDING = 0.2
-VARIATION_OF_START_SIGNAL_MIN = 0.4 - START_SIGNAL_PADDING
-VARIATION_OF_START_SIGNAL_MAX = 0.4 + START_SIGNAL_PADDING
+START_SIGNAL_PADDING = 0.1
+VARIATION_OF_START_SIGNAL_MIN = 0.2 - START_SIGNAL_PADDING
+VARIATION_OF_START_SIGNAL_MAX = 0.2 + START_SIGNAL_PADDING
+COMPARE_SAMPLE_INTERVAL = 3
 
 BEGIN_CUT_OFF = 0.1
 START_POINT = 0
@@ -34,6 +35,10 @@ class SignalState(enum.Enum):
 #
 def detect_start(file_name, sample_rate):
     
+    global VARIATION_OF_START_SIGNAL_MIN
+    global VARIATION_OF_START_SIGNAL_MAX
+    global COMPARE_SAMPLE_INTERVAL
+    global BEGIN_CUT_OFF
     global START_POINT
 
     # Set source file's location
@@ -41,32 +46,39 @@ def detect_start(file_name, sample_rate):
     cut_off_samples = (int)(BEGIN_CUT_OFF * sample_rate)
     
     # Set start_flag to READY
-    # Set prev_amp using sample after cutting off 
     state = SignalState.READY
-    prev_amp = abs(src[cut_off_samples])
-    for i in range(cut_off_samples + 1, len(src)):
+    for i in range(cut_off_samples + COMPARE_SAMPLE_INTERVAL, len(src)):
+        # Set new prev_amp 
+        prev_amp = abs(src[i - COMPARE_SAMPLE_INTERVAL])
         amp = abs(src[i])      
-        variation_of_amp = abs(amp - prev_amp)
+        variation_of_amp = amp - prev_amp
 
         # If the variation of amplitude is larger than threshold 
-        if (variation_of_amp > (VARIATION_OF_START_SIGNAL_MIN * amp) and \
-            variation_of_amp < (VARIATION_OF_START_SIGNAL_MAX * amp)):
-            # Check the signal's state and move it to next state
+        # Increase: DOWN->UP
+        if ((variation_of_amp > (VARIATION_OF_START_SIGNAL_MIN * amp)) and \
+            (variation_of_amp < (VARIATION_OF_START_SIGNAL_MAX * amp))):
+            # Check the signal's state and move next state
+            if (state is SignalState.DOWN):
+                state = SignalState.UP
+        
+        # Decrease: READY->DOWN, UP->START
+        elif ((-variation_of_amp > (VARIATION_OF_START_SIGNAL_MIN * prev_amp)) and \
+              (-variation_of_amp < (VARIATION_OF_START_SIGNAL_MAX * prev_amp))):
+            # Check the signal's state and move next
             if (state is SignalState.READY):
                 state = SignalState.DOWN
-            elif (state is SignalState.DOWN):
-                state = SignalState.UP
             elif (state is SignalState.UP):
-                state = SignalState.START 
-        prev_amp = amp
+                state = SignalState.START
         
         # If the state is START, then return start_point
         if (state is SignalState.START):
             START_POINT = i
+            break
     
     # Fail to detect start point
     # Set start point to cut off point
-    START_POINT = cut_off_samples
+    if (state is not SignalState.START):
+        START_POINT = cut_off_samples
 
 #
 # Make binary/csv/txt files to save amplitude
@@ -99,6 +111,8 @@ def get_amp(file_name, sample_rate, get_period_sec):
 #
 def get_phase(file_name, sample_rate, get_period_sec):
     
+    global VARIATION_OF_FLUCTUATION_MIN
+    global VARIATION_OF_FLUCTUATION_MAX
     global START_POINT
 
     # Set source file's location
@@ -119,8 +133,8 @@ def get_phase(file_name, sample_rate, get_period_sec):
         
         # Detect fluctuation caused by ON/OFF
         variation_of_phase = abs(phase - prev_phase)
-        if (variation_of_phase > VARIATION_OF_FLUCTUATION_MIN and \
-            variation_of_phase < VARIATION_OF_FLUCTUATION_MAX):
+        if ((variation_of_phase > VARIATION_OF_FLUCTUATION_MIN) and \
+            (variation_of_phase < VARIATION_OF_FLUCTUATION_MAX)):
                 phase -= math.pi
                 if (phase < 0):
                     phase += 2 * math.pi
@@ -143,7 +157,6 @@ def get_data(file_name, sample_rate, get_period_sec):
     global START_POINT
 
     detect_start(file_name, sample_rate)
-    print(START_POINT)
     get_amp(file_name, sample_rate, get_period_sec)
     get_phase(file_name, sample_rate, get_period_sec)
 
