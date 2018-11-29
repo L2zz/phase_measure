@@ -18,6 +18,8 @@ BEGIN_CUT_OFF = 0.1
 SAMPLES_PER_STEP = 0
 THRESHOLD_TO_GET_END = 5
 
+MARGIN_TO_EVALUATE_360 = 3
+
 #
 # Signal State flows READY -> DOWN1 -> UP -> DOWN2 -> START -> END
 # 
@@ -222,6 +224,7 @@ def detect_target(file_name, sample_rate, total_steps):
         print('\n<< Target is not valid >>\n')
         sys.exit()
 
+#
 # Make binary/csv files to save amplitude
 # File format: (file_name)_amp, (file_name)_amp.csv
 #
@@ -244,29 +247,74 @@ def get_amp(file_name, total_steps):
     make_file_by_step(file_name, TargetData.AMPLITUDE)
      
 #
-# Make binary/csv files to save [0, 2pi] phase in degree
+# Make binary/csv files to save phase in degree
 # File format: (file_name)_phase, (file_name)_phase.csv
 #
 def get_phase(file_name, total_steps):
     
+    global MARGIN_TO_EVALUATE_360
+    global SAMPLES_PER_STEP
+
     # Set source file's location
     src = np.fromfile(open('../result/' + file_name + '_target'), dtype=np.complex64)
     
     # Save first sample and set it to prev_phase
     phase_list = []
-    prev_phase = cmath.phase(src[0])
-    if (prev_phase < 0):
-        prev_phase += 2 * math.pi
-    phase_list.append(prev_phase)
-
-    # Get phase with range [0, 2pi]
-    for i in range(1, len(src)):
+    is_360 = False
+    is_0 = False
+    is_enter = False
+    start_index_fluctuation = 0
+    end_index_fluctuation = 0
+    for i in range(len(src)):
         phase = cmath.phase(src[i])
         if (phase < 0):
             phase += 2 * math.pi
-        
-        phase_list.append(math.degrees(phase))
-        prev_phase = phase
+        phase_in_degree = math.degrees(phase)
+
+        # Detect sample whose phase is about 2pi
+        if (phase_in_degree > 360 - MARGIN_TO_EVALUATE_360):
+            is_360 = True
+            if (not is_0):
+                # Tendency to increase
+                if ((phase - cmath.phase(src[i/2])) > 0):
+                    is_tend_inc = True
+                # Tendency to decrease
+                else:
+                    is_tend_inc = False
+
+        # Detect sample whose phase is about 0
+        if (phase_in_degree < 0 + MARGIN_TO_EVALUATE_360):
+            is_0 = True
+            if (not is_360):
+                # Tendency to increase
+                if ((phase - cmath.phase(src[i/2])) > 0):
+                    is_tend_inc = True
+                # Tendency to decrease
+                else:
+                    is_tend_inc = False
+
+        # After detect 0 and 360
+        if (is_0 and is_360):
+            # Set entering two steps to fluctuation region
+            if (not is_enter):
+                is_enter = True
+                start_index_of_fluctuation = i
+                end_index_of_fluctuation = i + 2 * SAMPLES_PER_STEP
+            
+            # In Fluctuation regin
+            if (i < end_index_of_fluctuation):
+                if (is_tend_inc):
+                    if (not phase_in_degree > 360 - MARGIN_TO_EVALUATE_360):
+                        phase_in_degree += 360
+                else:
+                    if (not phase_in_degree < 0 + MARGIN_TO_EVALUATE_360):
+                        phase_in_degree -= 360
+            else:    
+                if (is_tend_inc):
+                    phase_in_degree += 360
+                else:
+                    phase_in_degree -= 360
+        phase_list.append(phase_in_degree)
 
     # Make binary file
     phase_list_np = np.asarray(phase_list, dtype=np.float32)
