@@ -16,19 +16,25 @@ COMPARE_SAMPLE_INTERVAL = 10
 
 BEGIN_CUT_OFF = 0.1
 SAMPLES_PER_STEP = 0
+THRESHOLD_TO_GET_END = 5
 
 #
-# Signal State flows READY -> DOWN1 -> UP -> DOWN2 -> START
+# Signal State flows READY -> DOWN1 -> UP -> DOWN2 -> START -> END
 # 
-#       ** -------  DOWN  ------  START  **
-#           READY |______|  UP  |_______
+#       ** -------  DOWN  ------  START  **     ** -----  END           -----
+#           READY |______|  UP  |_______                |_____ or _____| END
+#                   
+#                  < Amplitude >                            < Phase > 
 #
+# END is special becuase it can be detected with phase
+# 
 class SignalState(enum.Enum):
 
     READY = 0
     DOWN = 1
     UP = 2
     START = 3
+    END = 4
 
 #
 # Set target data types to enum
@@ -64,7 +70,7 @@ def make_file_by_step(file_name, data_type):
     samples_of_step_cut_off = (int)(SAMPLES_PER_STEP * STEP_CUT_OFF)
     samples_of_cut_off_result = (int)(SAMPLES_PER_STEP * (1.0 - 2.0*(STEP_CUT_OFF)))
     avg_value = 0
-    for step in range(0, len(src), SAMPLES_PER_STEP):
+    for step in range(0, len(src)-SAMPLES_PER_STEP, SAMPLES_PER_STEP):
         for sample in range(samples_of_step_cut_off, \
                             SAMPLES_PER_STEP-samples_of_step_cut_off):
             avg_value += src[step + sample]
@@ -130,6 +136,7 @@ def detect_target(file_name, sample_rate, total_steps):
     global COMPARE_SAMPLE_INTERVAL
     global BEGIN_CUT_OFF
     global SAMPLES_PER_STEP
+    global THRESHOLD_TO_GET_END
 
     # Set source file's location
     # Set location to read
@@ -139,6 +146,8 @@ def detect_target(file_name, sample_rate, total_steps):
     # Find start point
     # Set start_flag to READY
     state = SignalState.READY
+    samples_in_down = 0
+    samples_in_up = 0
     for i in range(cut_off_samples + COMPARE_SAMPLE_INTERVAL, len(src)):
         # Set new prev_amp 
         prev_amp = abs(src[i - COMPARE_SAMPLE_INTERVAL])
@@ -163,7 +172,6 @@ def detect_target(file_name, sample_rate, total_steps):
             elif (state is SignalState.UP):
                 state = SignalState.START
                 samples_in_up = i - up_start
-                SAMPLES_PER_STEP = (samples_in_up + samples_in_down) / 2
         
         # If the state is START, then return start point
         if (state is SignalState.START):
@@ -176,15 +184,36 @@ def detect_target(file_name, sample_rate, total_steps):
         sys.exit()
     
     # Print the result
-    print('\n<< Success to detect start pattern >>')
-    print('Samples per step: ' + str(SAMPLES_PER_STEP) + '\n')
+    print('\n<< Success to detect start pattern >>\n')
     
+    # Get end point usin start point and total steps
+    SAMPLES_PER_STEP = (samples_in_up + samples_in_down) / 2
+    last_step_start_point = start_point + (total_steps - 1) * SAMPLES_PER_STEP 
+    for i in range(last_step_start_point, last_step_start_point + 2 * SAMPLES_PER_STEP):
+        # Set new prev_phase
+        phase = math.degrees(cmath.phase(src[i]))
+        next_phase = math.degrees(cmath.phase(src[i + COMPARE_SAMPLE_INTERVAL]))
+        variation_of_phase = abs(phase - next_phase)
+        if (variation_of_phase > THRESHOLD_TO_GET_END):
+            print('\n<< Detect end point >>')
+            state = SignalState.END
+            end_point = i
+            samples_in_target = end_point - start_point
+            SAMPLES_PER_STEP = (samples_in_up + samples_in_down + samples_in_target) \
+                                / (2 + total_steps)
+            break
+    
+    # Fail to detect end point, then guess the end point
     # Set end point using start point and total steps
-    end_point = start_point + (total_steps) * SAMPLES_PER_STEP
+    if (state is not SignalState.END):
+        print('\n<< Fail to detect end point >>')
+        end_point = start_point + (total_steps) * SAMPLES_PER_STEP
+    
+    print('Samples per step: ' + str(SAMPLES_PER_STEP) + '\n')
     
     # Check the target is valid
     first_step = src[start_point: start_point+SAMPLES_PER_STEP]
-    valid_check_step = src[end_point + SAMPLES_PER_STEP: end_point + 2*SAMPLES_PER_STEP]
+    valid_check_step = src[end_point: end_point + SAMPLES_PER_STEP]
     if (check_is_valid(first_step, valid_check_step)):
         # Make binary file using target
         src_target = src[start_point:end_point]
