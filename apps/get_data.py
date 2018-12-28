@@ -52,7 +52,7 @@ class DataType(enum.Enum):
 #
 # Make log of data using given file type and data type
 #
-def make_file_by_step(file_name):
+def make_file_by_step(file_name, file_idx):
 
     global STEP_CUT_OFF
     global SAMPLES_PER_STEP
@@ -62,12 +62,12 @@ def make_file_by_step(file_name):
     csv_wr = csv.writer(csv_file, delimiter=',')
 
     # Get the number of samples to cut off
-    samples_of_step_cut_off = (int)(SAMPLES_PER_STEP * STEP_CUT_OFF)
-    samples_of_cut_off_result = (int)(SAMPLES_PER_STEP * (1.0 - 2.0*(STEP_CUT_OFF)))
+    samples_of_step_cut_off = (int)(SAMPLES_PER_STEP[file_idx] * STEP_CUT_OFF)
+    samples_of_cut_off_result = (int)(SAMPLES_PER_STEP[file_idx] * (1.0 - 2.0*(STEP_CUT_OFF)))
     avg_value = 0
-    for step in range(0, len(src)-SAMPLES_PER_STEP, SAMPLES_PER_STEP):
+    for step in range(0, len(src)-SAMPLES_PER_STEP[file_idx], SAMPLES_PER_STEP[file_idx]):
         for sample in range(samples_of_step_cut_off, \
-                            SAMPLES_PER_STEP-samples_of_step_cut_off):
+                            SAMPLES_PER_STEP[file_idx]-samples_of_step_cut_off):
             avg_value += src[step + sample]
         avg_value /= samples_of_cut_off_result
         csv_wr.writerow([avg_value])
@@ -129,7 +129,8 @@ def detect_start(src, sample_rate):
         sys.exit()
 
     # Print the result
-    SAMPLES_PER_STEP = (start_point - ready_idx) / 3
+    SAMPLES_PER_STEP[0] = (start_point - ready_idx) / 3
+    SAMPLES_PER_STEP[1] = (start_point - ready_idx) / 3
     print('\n<< Success to detect start pattern >>\n')
 
     return start_point
@@ -138,7 +139,7 @@ def detect_start(src, sample_rate):
 # Get end point of stage with varying data
 # If end point is not detected, then use samples per step obtained before
 #
-def detect_end(src, start_point, steps, varying_data):
+def detect_end(src, start_point, steps, varying_data, file_idx):
 
     global COMPARE_SAMPLE_INTERVAL
     global SAMPLES_PER_STEP
@@ -147,9 +148,9 @@ def detect_end(src, start_point, steps, varying_data):
 
     # Get end point using start point and total steps
     state = SignalState.START
-    last_step_start_point = start_point + (steps - 1) * SAMPLES_PER_STEP
+    last_step_start_point = start_point + (steps - 1) * SAMPLES_PER_STEP[file_idx]
     if (varying_data is DataType.PHASE):
-        for i in range(last_step_start_point, last_step_start_point + 2 * SAMPLES_PER_STEP):
+        for i in range(last_step_start_point, last_step_start_point + 2 * SAMPLES_PER_STEP[file_idx]):
             # Set new prev_phase
             phase = math.degrees(cmath.phase(src[i]))
             next_phase = math.degrees(cmath.phase(src[i + COMPARE_SAMPLE_INTERVAL]))
@@ -159,10 +160,10 @@ def detect_end(src, start_point, steps, varying_data):
                 state = SignalState.END
                 end_point = i
                 samples_in_target = end_point - start_point
-                SAMPLES_PER_STEP = (samples_in_target + SAMPLES_PER_STEP * 3) / (steps + 3)
+                SAMPLES_PER_STEP[file_idx] = (samples_in_target + SAMPLES_PER_STEP[file_idx] * 3) / (steps + 3)
                 break
     elif (varying_data is DataType.AMPLITUDE):
-        for i in range(last_step_start_point, last_step_start_point + 2 * SAMPLES_PER_STEP):
+        for i in range(last_step_start_point, last_step_start_point + 2 * SAMPLES_PER_STEP[file_idx]):
             # Set new prev_amp
             amp = abs(src[i])
             next_amp = abs(src[i + COMPARE_SAMPLE_INTERVAL])
@@ -172,16 +173,16 @@ def detect_end(src, start_point, steps, varying_data):
                 state = SignalState.END
                 end_point = i
                 samples_in_target = end_point - start_point
-                SAMPLES_PER_STEP = (samples_in_target + SAMPLES_PER_STEP * 3) / (steps + 3)
+                SAMPLES_PER_STEP[file_idx] = (samples_in_target + SAMPLES_PER_STEP[file_idx] * 3) / (steps + 3)
                 break
 
     # Fail to detect end point, then guess the end point
     # Set end point using start point and total steps
     if (state is not SignalState.END):
         print('\n<< Fail to detect end point >>')
-        end_point = start_point + (steps) * SAMPLES_PER_STEP
+        end_point = start_point + (steps) * SAMPLES_PER_STEP[file_idx]
 
-    print('Samples per step: ' + str(SAMPLES_PER_STEP))
+    print('Samples per step: ' + str(SAMPLES_PER_STEP[file_idx]))
     print('Samples in stage: ' + str(end_point - start_point) + '\n')
     src_target = src[start_point:end_point]
 
@@ -203,8 +204,8 @@ def detect_target(file_name, sample_rate, steps1, steps2):
     src = np.fromfile(open('../result/' + file_name), dtype=np.complex64)
 
     start_point = detect_start(src, sample_rate)
-    end_point = detect_end(src, start_point, steps1, DataType.PHASE)
-    detect_end(src, end_point, steps2, DataType.AMPLITUDE)
+    end_point = detect_end(src, start_point, steps1, DataType.PHASE, 0)
+    detect_end(src, end_point, steps2, DataType.AMPLITUDE, 1)
 
 #
 # Make binary/csv files to save amplitude
@@ -229,7 +230,7 @@ def get_amp(file_name, steps, file_idx):
     amp_list_np.tofile(dest)
 
     # Make csv file by steps
-    make_file_by_step(new_file_name)
+    make_file_by_step(new_file_name, file_idx)
 
 #
 # Make binary/csv files to save phase in degree
@@ -287,7 +288,7 @@ def get_phase(file_name, steps, file_idx):
             if (not is_enter):
                 is_enter = True
                 start_index_of_fluctuation = i
-                end_index_of_fluctuation = i + 2 * SAMPLES_PER_STEP
+                end_index_of_fluctuation = i + 2 * SAMPLES_PER_STEP[file_idx]
 
             # In Fluctuation regin
             if (i < end_index_of_fluctuation):
@@ -309,7 +310,7 @@ def get_phase(file_name, steps, file_idx):
     phase_list_np.tofile(dest)
 
     # Make csv file by steps
-    make_file_by_step(new_file_name)
+    make_file_by_step(new_file_name, file_idx)
 
 #
 # Call get_amp & get_phase to get amplitude & phase
