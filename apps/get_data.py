@@ -52,22 +52,13 @@ class DataType(enum.Enum):
 #
 # Make log of data using given file type and data type
 #
-def make_file_by_step(file_name, data_type):
+def make_file_by_step(file_name):
 
     global STEP_CUT_OFF
     global SAMPLES_PER_STEP
 
-    if (data_type is DataType.PHASE):
-        src = np.fromfile(open('../result/' + file_name + '_phase'), dtype=np.float32)
-        csv_file = open('../csv/' + file_name + '_phase.csv', 'a')
-        csv_wr = csv.writer(csv_file, delimiter=',')
-    elif (data_type is DataType.AMPLITUDE):
-        src = np.fromfile(open('../result/' + file_name + '_amp'), dtype=np.float32)
-        csv_file = open('../csv/' + file_name + '_amp.csv', 'a')
-        csv_wr = csv.writer(csv_file, delimiter=',')
-    else:
-        print('\n<< Data type error >>\n')
-        sys.exit()
+    src = np.fromfile(open('../result/' + file_name), dtype=np.float32)
+    csv_file = open('../csv/' + file_name + '.csv', 'a')
 
     # Get the number of samples to cut off
     samples_of_step_cut_off = (int)(SAMPLES_PER_STEP * STEP_CUT_OFF)
@@ -262,15 +253,13 @@ def detect_target(file_name, sample_rate, steps1, steps2):
 # Make binary/csv files to save amplitude
 # File format: (file_name)_amp, (file_name)_amp.csv
 #
-def get_amp(file_name, steps, varying_data):
+def get_amp(file_name, steps, file_idx):
 
     # Set source file's location
-    if (varying_data is DataType.PHASE):
-        src = np.fromfile(open('../result/' + file_name + '_target0'), \
-                                dtype=np.complex64)
-    elif (varying_data is DataType.AMPLITUDE):
-        src = np.fromfile(open('../result/' + file_name + '_target1'), \
-                                dtype=np.complex64)
+    src = np.fromfile(open('../result/' + file_name + '_target' + str(file_idx)), \
+                            dtype=np.complex64)
+    new_file_name = file_name + '_amp' + str(file_idx)
+    dest = '../result/' + file_name + '_amp' + str(file_idx)
 
     # Get amplitude
     amp_list = []
@@ -280,30 +269,25 @@ def get_amp(file_name, steps, varying_data):
 
     # Make binary file
     amp_list_np = np.asarray(amp_list, dtype=np.float32)
-    if (varying_data is DataType.PHASE):
-        amp_list_np.tofile('../result/' + file_name + '_amp0')
-    elif (varying_data is DataType.AMPLITUDE):
-        amp_list_np.tofile('../result/' + file_name + '_amp1')
+    amp_list_np.tofile(dest)
 
     # Make csv file by steps
-    make_file_by_step(file_name_, DataType.AMPLITUDE)
+    make_file_by_step(new_file_name)
 
 #
 # Make binary/csv files to save phase in degree
 # File format: (file_name)_phase, (file_name)_phase.csv
 #
-def get_phase(file_name, steps, varying_data):
+def get_phase(file_name, steps, file_idx):
 
     global MARGIN_TO_EVALUATE_360
     global SAMPLES_PER_STEP
 
-    # Set source file's location
-    if (varying_data is DataType.PHASE):
-        src = np.fromfile(open('../result/' + file_name + '_target0'), \
-                                dtype=np.complex64)
-    elif (varying_data is DataType.AMPLITUDE):
-        src = np.fromfile(open('../result/' + file_name + '_target1'), \
-                                dtype=np.complex64)
+    # Set source and destination location
+    src = np.fromfile(open('../result/' + file_name + '_target' + str(file_idx)), \
+                            dtype=np.complex64)
+    new_file_name = file_name + '_phase' + str(file_idx)
+    dest = '../result/' + file_name + '_phase' + str(file_idx)
 
     # Save first sample and set it to prev_phase
     phase_list = []
@@ -365,13 +349,10 @@ def get_phase(file_name, steps, varying_data):
 
     # Make binary file
     phase_list_np = np.asarray(phase_list, dtype=np.float32)
-    if (varying_data is DataType.PHASE):
-        phase_list_np.tofile('../result/' + file_name + '_phase0')
-    elif (varying_data is DataType.AMPLITUDE):
-        phase_list_np.tofile('../result/' + file_name + '_phase1')
+    amp_list_np.tofile(dest)
 
     # Make csv file by steps
-    make_file_by_step(file_name, DataType.PHASE)
+    make_file_by_step(new_file_name)
 
 #
 # Call get_amp & get_phase to get amplitude & phase
@@ -381,10 +362,10 @@ def get_phase(file_name, steps, varying_data):
 def get_data(file_name, sample_rate, steps1, steps2):
 
     detect_target(file_name, sample_rate, steps1, steps2)
-    get_phase(file_name, steps1, DataType.PHASE)
-    get_amp(file_name, steps1, DataType.PHASE)
-    get_phase(file_name, steps2, DataType.AMPLITUDE)
-    get_amp(file_name, steps2, DataType.AMPLITUDE)
+    get_phase(file_name, steps1, 0)
+    get_amp(file_name, steps1, 0)
+    get_phase(file_name, steps2, 1)
+    get_amp(file_name, steps2, 1)
 
 
 if __name__ == '__main__':
