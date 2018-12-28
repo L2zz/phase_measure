@@ -16,35 +16,38 @@ COMPARE_SAMPLE_INTERVAL = 10
 
 BEGIN_CUT_OFF = 0.1
 SAMPLES_PER_STEP = 0
-THRESHOLD_TO_GET_END = 5
+THRESHOLD_TO_GET_END_PHASE = 5
+THRESHOLD_TO_GET_END_AMPLITUDE = 0.1
 
 MARGIN_TO_EVALUATE_360 = 3
 
 #
-# Signal State flows READY -> DOWN1 -> UP -> DOWN2 -> START -> END
-# 
-#       ** -------  DOWN  ------  START  **     ** -----  END           -----
-#           READY |______|  UP  |_______                |_____ or _____| END
-#                   
-#                  < Amplitude >                            < Phase > 
+# Signal State flows READY -> UP1 -> DOWN -> UP2 -> START -> END
 #
-# END is special becuase it can be detected with phase
-# 
+#       **  READY  -------  DOWN  -------  START
+#          _______| UP1  |_______|  UP2 |_______
+#                  < Amplitude >
+#
+#       ** -----  END           ----- **       ** ----- END
+#               |_____ or _____| END                  |_____
+#                  < Phase >                    <Amplitude>
+#
 class SignalState(enum.Enum):
 
     READY = 0
-    DOWN = 1
-    UP = 2
-    START = 3
-    END = 4
+    UP1 = 1
+    DOWN = 2
+    UP2 = 3
+    START = 4
+    END = 5
 
 #
 # Set target data types to enum
 #
-class TargetData(enum.Enum):
+class DataType(enum.Enum):
 
-    AMPLITUDE = 0
-    PHASE = 1
+    PHASE = 0
+    AMPLITUDE = 1
 
 #
 # Make log of data using given file type and data type
@@ -53,21 +56,19 @@ def make_file_by_step(file_name, data_type):
 
     global STEP_CUT_OFF
     global SAMPLES_PER_STEP
-    
-    if (data_type is TargetData.AMPLITUDE):
-        src = np.fromfile(open('../result/' + file_name + '_amp'), dtype=np.float32)
-        csv_file = open('../csv/' + file_name + '_amp.csv', 'w')
-        csv_wr = csv.writer(csv_file, delimiter=',')
 
-    elif (data_type is TargetData.PHASE):
-        src = np.fromfile(open('../result/' + file_name + '_phase'), dtype=np.float32)
-        csv_file = open('../csv/' + file_name + '_phase.csv', 'w')
+    if (data_type is DataType.PHASE):
+        src = np.fromfile(open('../result/' + file_name + '_amp'), dtype=np.float32)
+        csv_file = open('../csv/' + file_name + '_amp.csv', 'a')
         csv_wr = csv.writer(csv_file, delimiter=',')
-    
+    elif (data_type is DataType.AMPLITUDE):
+        src = np.fromfile(open('../result/' + file_name + '_phase'), dtype=np.float32)
+        csv_file = open('../csv/' + file_name + '_phase.csv', 'a')
+        csv_wr = csv.writer(csv_file, delimiter=',')
     else:
         print('\n<< Data type error >>\n')
         sys.exit()
-    
+
     # Get the number of samples to cut off
     samples_of_step_cut_off = (int)(SAMPLES_PER_STEP * STEP_CUT_OFF)
     samples_of_cut_off_result = (int)(SAMPLES_PER_STEP * (1.0 - 2.0*(STEP_CUT_OFF)))
@@ -79,18 +80,18 @@ def make_file_by_step(file_name, data_type):
         avg_value /= samples_of_cut_off_result
         csv_wr.writerow([avg_value])
         avg_value = 0
-    
+
     csv_file.close()
 
 #
-# Compare first step and valid check step which appear after last step 
+# Compare first step and valid check step which appear after last step
 # First step and valid check step are controled to have same phase
 #
-def check_is_valid(first_step, valid_check_step):    
+def check_is_valid(first_step, valid_check_step):
 
     global SAMPLES_PER_STEP
     global VALID_CHECK
-    
+
     # Get the number of samples to cut off
     samples_of_step_cut_off = (int)(SAMPLES_PER_STEP * STEP_CUT_OFF)
 
@@ -98,7 +99,7 @@ def check_is_valid(first_step, valid_check_step):
     first_step_cut_off = first_step[samples_of_step_cut_off: -samples_of_step_cut_off]
     valid_check_step_cut_off = \
             valid_check_step[samples_of_step_cut_off: -samples_of_step_cut_off]
-    
+
     # Get average phase of pulse in step
     samples_of_cut_off_result = len(first_step_cut_off)
     avg_phase_first_step = 0
@@ -108,7 +109,7 @@ def check_is_valid(first_step, valid_check_step):
         avg_phase_valid_check_step += cmath.phase(valid_check_step_cut_off[i])
     avg_phase_first_step /= samples_of_cut_off_result * 1.0
     avg_phase_valid_check_step /= samples_of_cut_off_result * 1.0
-    
+
     if (avg_phase_first_step < 0):
         avg_phase_first_step += 2 * math.pi
     if (avg_phase_valid_check_step < 0):
@@ -124,114 +125,151 @@ def check_is_valid(first_step, valid_check_step):
         is_valid = False
         print('\n<< Unvalid >>')
         print('Phase gap in degree: ' + str(phase_gap_degree) + '\n')
-    
+
     return is_valid
 
+#
+# Get start point of signal by detecting start pattern
+# Signal states are described above
+#
+def detect_start(src, sample_rate):
 
-#
-# Get start point(sample index) and end point of signal
-# Make target binary file: (file_name)_target
-#
-def detect_target(file_name, sample_rate, total_steps):
-   
     global VARIATION_OF_START_SIGNAL_MIN
     global COMPARE_SAMPLE_INTERVAL
     global BEGIN_CUT_OFF
-    global SAMPLES_PER_STEP
-    global THRESHOLD_TO_GET_END
 
     # Set source file's location
     # Set location to read
-    src = np.fromfile(open('../result/' + file_name), dtype=np.complex64)
     cut_off_samples = (int)(BEGIN_CUT_OFF * sample_rate)
-    
+
     # Find start point
     # Set start_flag to READY
     state = SignalState.READY
-    samples_in_down = 0
-    samples_in_up = 0
+    ready_idx = 0
     for i in range(cut_off_samples + COMPARE_SAMPLE_INTERVAL, len(src)):
-        # Set new prev_amp 
+        # Set new prev_amp
         prev_amp = abs(src[i - COMPARE_SAMPLE_INTERVAL])
-        amp = abs(src[i])      
+        amp = abs(src[i])
         variation_of_amp = amp - prev_amp
 
-        # If the variation of amplitude is larger than threshold 
-        # Increase: DOWN->UP
+        # If the variation of amplitude is larger than threshold
+        # Increase: READY->UP1, DOWN->UP2
         if ((variation_of_amp > (VARIATION_OF_START_SIGNAL_MIN * amp))):
             # Check the signal's state and move next state
-            if (state is SignalState.DOWN):
-                state = SignalState.UP
-                samples_in_down = i - down_start
-                up_start = i
-        
-        # Decrease: READY->DOWN, UP->START
+            if (state is SignalState.READY):
+                state = SignalState.UP1
+                ready_idx = i
+            elif (state is Signal.State.DOWN):
+                state = SignalState.UP2
+
+        # Decrease: UP1->DOWN, UP2->START
         elif ((-variation_of_amp > (VARIATION_OF_START_SIGNAL_MIN * prev_amp))):
             # Check the signal's state and move next
-            if (state is SignalState.READY):
+            if (state is SignalState.UP1):
                 state = SignalState.DOWN
-                down_start = i
-            elif (state is SignalState.UP):
+            elif (state is SignalState.UP2):
                 state = SignalState.START
-                samples_in_up = i - up_start
-        
+
         # If the state is START, then return start point
         if (state is SignalState.START):
             start_point  = i
             break
-    
+
     # Fail to detect start pattern
     if (state is not SignalState.START):
         print('\n<< Fail to detect start pattern >>\n')
         sys.exit()
-    
+
     # Print the result
     print('\n<< Success to detect start pattern >>\n')
-    
-    # Get end point usin start point and total steps
-    SAMPLES_PER_STEP = (samples_in_up + samples_in_down) / 2
-    last_step_start_point = start_point + (total_steps - 1) * SAMPLES_PER_STEP 
-    for i in range(last_step_start_point, last_step_start_point + 2 * SAMPLES_PER_STEP):
-        # Set new prev_phase
-        phase = math.degrees(cmath.phase(src[i]))
-        next_phase = math.degrees(cmath.phase(src[i + COMPARE_SAMPLE_INTERVAL]))
-        variation_of_phase = abs(phase - next_phase)
-        if (variation_of_phase > THRESHOLD_TO_GET_END):
-            print('\n<< Detect end point >>')
-            state = SignalState.END
-            end_point = i
-            samples_in_target = end_point - start_point
-            SAMPLES_PER_STEP = (samples_in_up + samples_in_down + samples_in_target) \
-                                / (2 + total_steps)
-            break
-    
+    SAMPLES_PER_STEP = (start_point - ready_idx) / 3
+
+    return start_point
+
+#
+# Get end point of stage with varying data
+# If end point is not detected, then use samples per step obtained before
+#
+def detect_end(src, start_point, steps, varying_data):
+
+    global COMPARE_SAMPLE_INTERVAL
+    global SAMPLES_PER_STEP
+    global THRESHOLD_TO_GET_END_PHASE
+    global THRESHOLD_TO_GET_END_AMPLITUDE
+
+    # Get end point using start point and total steps
+    state = SignalState.START
+    last_step_start_point = start_point + (steps - 1) * SAMPLES_PER_STEP
+    if (varying_data is DataType.PHASE):
+        for i in range(last_step_start_point, last_step_start_point + 2 * SAMPLES_PER_STEP):
+            # Set new prev_phase
+            phase = math.degrees(cmath.phase(src[i]))
+            next_phase = math.degrees(cmath.phase(src[i + COMPARE_SAMPLE_INTERVAL]))
+            variation_of_phase = abs(phase - next_phase)
+            if (variation_of_phase > THRESHOLD_TO_GET_END_PHASE):
+                print('\n<< Detect end point >>')
+                state = SignalState.END
+                end_point = i
+                samples_in_target = end_point - start_point
+                SAMPLES_PER_STEP = (samples_in_target + SAMPLES_PER_STEP * 3) / (steps + 3)
+                break
+    elif (varying_data is DataType.AMPLITUDE):
+        for i in range(last_step_start_point, last_step_start_point + 2 * SAMPLES_PER_STEP):
+            # Set new prev_amp
+            amp = abs(src[i])
+            next_phase = abs(src[i + COMPARE_SAMPLE_INTERVAL])
+            variation_of_amp = abs(amp - next_amp)
+            if (variation_of_amp > THRESHOLD_TO_GET_END_AMPLITUDE):
+                print('\n<< Detect end point >>')
+                state = SignalState.END
+                end_point = i
+                samples_in_target = end_point - start_point
+                SAMPLES_PER_STEP = (samples_in_target + SAMPLES_PER_STEP * 3) / (steps + 3)
+                break
+
     # Fail to detect end point, then guess the end point
     # Set end point using start point and total steps
     if (state is not SignalState.END):
         print('\n<< Fail to detect end point >>')
-        end_point = start_point + (total_steps) * SAMPLES_PER_STEP
-    
+        end_point = start_point + (steps) * SAMPLES_PER_STEP
+
     print('Samples per step: ' + str(SAMPLES_PER_STEP) + '\n')
-    
-    # Check the target is valid
-    first_step = src[start_point: start_point+SAMPLES_PER_STEP]
-    valid_check_step = src[end_point: end_point + SAMPLES_PER_STEP]
-    if (check_is_valid(first_step, valid_check_step)):
-        # Make binary file using target
-        src_target = src[start_point:end_point]
-        src_target.tofile('../result/' + file_name + '_target')
-    else:
-        print('\n<< Target is not valid >>\n')
-        sys.exit()
+    src_target = src[start_point:end_point]
+
+    if (varying_data is DataType.PHASE):
+        src_target.tofile('../result/' + file_name + '_target0')
+    elif (varying_data is DataType.AMPLITUDE):
+        src_target.tofile('../result/' + file_name + '_target1')
+
+
+    return end_point
+
+#
+# Get start point(sample index) and end point of signal
+# Make target binary file: (file_name)_target0,  (file_name)_target0
+# target0: phase is varying, target1: amplitude is varying
+#
+def detect_target(file_name, sample_rate, steps1, steps2):
+
+    src = np.fromfile(open('../result/' + file_name), dtype=np.complex64)
+
+    start_point = detect_start(src, sample_rate)
+    end_point = detect_end(src, start_point, steps1, DataType.PHASE)
+    detect_end(src, end_point, steps2, DataType.AMPLITUDE)
 
 #
 # Make binary/csv files to save amplitude
 # File format: (file_name)_amp, (file_name)_amp.csv
 #
-def get_amp(file_name, total_steps):
-    
+def get_amp(file_name, steps, varying_data):
+
     # Set source file's location
-    src = np.fromfile(open('../result/' + file_name + '_target'), dtype=np.complex64)
+    if (varying_data is DataType.PHASE):
+        src = np.fromfile(open('../result/' + file_name + '_target0'), \
+                                dtype=np.complex64)
+    elif (varying_data is DataType.AMPLITUDE):
+        src = np.fromfile(open('../result/' + file_name + '_target1'), \
+                                dtype=np.complex64)
 
     # Get amplitude
     amp_list = []
@@ -244,20 +282,25 @@ def get_amp(file_name, total_steps):
     amp_list_np.tofile('../result/' + file_name + '_amp')
 
     # Make csv file by steps
-    make_file_by_step(file_name, TargetData.AMPLITUDE)
-     
+    make_file_by_step(file_name, DataType.AMPLITUDE)
+
 #
 # Make binary/csv files to save phase in degree
 # File format: (file_name)_phase, (file_name)_phase.csv
 #
-def get_phase(file_name, total_steps):
-    
+def get_phase(file_name, steps, varying_data):
+
     global MARGIN_TO_EVALUATE_360
     global SAMPLES_PER_STEP
 
     # Set source file's location
-    src = np.fromfile(open('../result/' + file_name + '_target'), dtype=np.complex64)
-    
+    if (varying_data is DataType.PHASE):
+        src = np.fromfile(open('../result/' + file_name + '_target0'), \
+                                dtype=np.complex64)
+    elif (varying_data is DataType.AMPLITUDE):
+        src = np.fromfile(open('../result/' + file_name + '_target1'), \
+                                dtype=np.complex64)
+
     # Save first sample and set it to prev_phase
     phase_list = []
     is_360 = False
@@ -300,7 +343,7 @@ def get_phase(file_name, total_steps):
                 is_enter = True
                 start_index_of_fluctuation = i
                 end_index_of_fluctuation = i + 2 * SAMPLES_PER_STEP
-            
+
             # In Fluctuation regin
             if (i < end_index_of_fluctuation):
                 if (is_tend_inc):
@@ -309,7 +352,7 @@ def get_phase(file_name, total_steps):
                 else:
                     if (not phase_in_degree < 0 + MARGIN_TO_EVALUATE_360):
                         phase_in_degree -= 360
-            else:    
+            else:
                 if (is_tend_inc):
                     phase_in_degree += 360
                 else:
@@ -321,16 +364,20 @@ def get_phase(file_name, total_steps):
     phase_list_np.tofile('../result/' + file_name + '_phase')
 
     # Make csv file by steps
-    make_file_by_step(file_name, TargetData.PHASE)
-    
+    make_file_by_step(file_name, DataType.PHASE)
+
 #
 # Call get_amp & get_phase to get amplitude & phase
-# 
-def get_data(file_name, sample_rate, total_steps):
-    
-    detect_target(file_name, sample_rate, total_steps)
-    get_amp(file_name, total_steps)
-    get_phase(file_name, total_steps)
+# steps1: # of steps in Phase varying stage
+# steps2: # of steps in Amplitude varying stage
+#
+def get_data(file_name, sample_rate, steps1, steps2):
+
+    detect_target(file_name, sample_rate, steps1, steps2)
+    get_phase(file_name, steps1, DataType.PHASE)
+    get_amp(file_name, steps1, DataType.PHASE)
+    get_phase(file_name, steps2, DataType.AMPLITUDE)
+    get_amp(file_name, steps2, DataType.AMPLITUDE)
 
 
 if __name__ == '__main__':
@@ -343,8 +390,8 @@ if __name__ == '__main__':
     # Set parameter statically
     file_name = 'data'
     sample_rate = 2000000
-    total_steps = 100
+    steps1 = 99
+    steps2 = 49
 
     # Get Data
-    get_data(file_name, sample_rate, total_steps)
-
+    get_data(file_name, sample_rate, steps1, steps2)
