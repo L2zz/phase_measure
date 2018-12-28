@@ -1,0 +1,10 @@
+        < How to use >
+
+1. Move data file into /result
+
+2. Execute get_data.py in /apps
+    ex) python get_data.py ant15_phase_amp0
+
+3. Result csv files are in /csv
+    *0.csv: result of varying phase
+    *1.csv: result of varying amplitude

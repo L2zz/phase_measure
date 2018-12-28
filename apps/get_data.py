@@ -19,7 +19,7 @@ SAMPLES_PER_STEP = [0, 0]
 THRESHOLD_TO_GET_END_PHASE = 10
 THRESHOLD_TO_GET_END_AMPLITUDE = 0.05
 
-MARGIN_TO_EVALUATE_360 = 3
+MARGIN_TO_EVALUATE_360 = 12
 
 #
 # Signal State flows READY -> UP1 -> DOWN -> UP2 -> START -> END
@@ -288,7 +288,7 @@ def get_phase(file_name, steps, file_idx):
             if (not is_enter):
                 is_enter = True
                 start_index_of_fluctuation = i
-                end_index_of_fluctuation = i + 2 * SAMPLES_PER_STEP[file_idx]
+                end_index_of_fluctuation = i + 4 * SAMPLES_PER_STEP[file_idx]
 
             # In Fluctuation regin
             if (i < end_index_of_fluctuation):
