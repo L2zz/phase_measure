@@ -16,8 +16,8 @@ COMPARE_SAMPLE_INTERVAL = 10
 
 BEGIN_CUT_OFF = 0.1
 SAMPLES_PER_STEP = 0
-THRESHOLD_TO_GET_END_PHASE = 5
-THRESHOLD_TO_GET_END_AMPLITUDE = 0.1
+THRESHOLD_TO_GET_END_PHASE = 10
+THRESHOLD_TO_GET_END_AMPLITUDE = 0.05
 
 MARGIN_TO_EVALUATE_360 = 3
 
@@ -58,12 +58,12 @@ def make_file_by_step(file_name, data_type):
     global SAMPLES_PER_STEP
 
     if (data_type is DataType.PHASE):
-        src = np.fromfile(open('../result/' + file_name + '_amp'), dtype=np.float32)
-        csv_file = open('../csv/' + file_name + '_amp.csv', 'a')
-        csv_wr = csv.writer(csv_file, delimiter=',')
-    elif (data_type is DataType.AMPLITUDE):
         src = np.fromfile(open('../result/' + file_name + '_phase'), dtype=np.float32)
         csv_file = open('../csv/' + file_name + '_phase.csv', 'a')
+        csv_wr = csv.writer(csv_file, delimiter=',')
+    elif (data_type is DataType.AMPLITUDE):
+        src = np.fromfile(open('../result/' + file_name + '_amp'), dtype=np.float32)
+        csv_file = open('../csv/' + file_name + '_amp.csv', 'a')
         csv_wr = csv.writer(csv_file, delimiter=',')
     else:
         print('\n<< Data type error >>\n')
@@ -137,6 +137,7 @@ def detect_start(src, sample_rate):
     global VARIATION_OF_START_SIGNAL_MIN
     global COMPARE_SAMPLE_INTERVAL
     global BEGIN_CUT_OFF
+    global SAMPLES_PER_STEP
 
     # Set source file's location
     # Set location to read
@@ -159,7 +160,7 @@ def detect_start(src, sample_rate):
             if (state is SignalState.READY):
                 state = SignalState.UP1
                 ready_idx = i
-            elif (state is Signal.State.DOWN):
+            elif (state is SignalState.DOWN):
                 state = SignalState.UP2
 
         # Decrease: UP1->DOWN, UP2->START
@@ -181,8 +182,8 @@ def detect_start(src, sample_rate):
         sys.exit()
 
     # Print the result
-    print('\n<< Success to detect start pattern >>\n')
     SAMPLES_PER_STEP = (start_point - ready_idx) / 3
+    print('\n<< Success to detect start pattern >>\n')
 
     return start_point
 
@@ -217,7 +218,7 @@ def detect_end(src, start_point, steps, varying_data):
         for i in range(last_step_start_point, last_step_start_point + 2 * SAMPLES_PER_STEP):
             # Set new prev_amp
             amp = abs(src[i])
-            next_phase = abs(src[i + COMPARE_SAMPLE_INTERVAL])
+            next_amp = abs(src[i + COMPARE_SAMPLE_INTERVAL])
             variation_of_amp = abs(amp - next_amp)
             if (variation_of_amp > THRESHOLD_TO_GET_END_AMPLITUDE):
                 print('\n<< Detect end point >>')
@@ -279,10 +280,13 @@ def get_amp(file_name, steps, varying_data):
 
     # Make binary file
     amp_list_np = np.asarray(amp_list, dtype=np.float32)
-    amp_list_np.tofile('../result/' + file_name + '_amp')
+    if (varying_data is DataType.PHASE):
+        amp_list_np.tofile('../result/' + file_name + '_amp0')
+    elif (varying_data is DataType.AMPLITUDE):
+        amp_list_np.tofile('../result/' + file_name + '_amp1')
 
     # Make csv file by steps
-    make_file_by_step(file_name, DataType.AMPLITUDE)
+    make_file_by_step(file_name_, DataType.AMPLITUDE)
 
 #
 # Make binary/csv files to save phase in degree
@@ -361,7 +365,10 @@ def get_phase(file_name, steps, varying_data):
 
     # Make binary file
     phase_list_np = np.asarray(phase_list, dtype=np.float32)
-    phase_list_np.tofile('../result/' + file_name + '_phase')
+    if (varying_data is DataType.PHASE):
+        phase_list_np.tofile('../result/' + file_name + '_phase0')
+    elif (varying_data is DataType.AMPLITUDE):
+        phase_list_np.tofile('../result/' + file_name + '_phase1')
 
     # Make csv file by steps
     make_file_by_step(file_name, DataType.PHASE)
