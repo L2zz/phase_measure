@@ -58,7 +58,8 @@ def make_file_by_step(file_name):
     global SAMPLES_PER_STEP
 
     src = np.fromfile(open('../result/' + file_name), dtype=np.float32)
-    csv_file = open('../csv/' + file_name + '.csv', 'a')
+    csv_file = open('../csv/' + file_name + '.csv', 'w')
+    csv_wr = csv.writer(csv_file, delimiter=',')
 
     # Get the number of samples to cut off
     samples_of_step_cut_off = (int)(SAMPLES_PER_STEP * STEP_CUT_OFF)
@@ -73,51 +74,6 @@ def make_file_by_step(file_name):
         avg_value = 0
 
     csv_file.close()
-
-#
-# Compare first step and valid check step which appear after last step
-# First step and valid check step are controled to have same phase
-#
-def check_is_valid(first_step, valid_check_step):
-
-    global SAMPLES_PER_STEP
-    global VALID_CHECK
-
-    # Get the number of samples to cut off
-    samples_of_step_cut_off = (int)(SAMPLES_PER_STEP * STEP_CUT_OFF)
-
-    # Get the steps from result cutting off
-    first_step_cut_off = first_step[samples_of_step_cut_off: -samples_of_step_cut_off]
-    valid_check_step_cut_off = \
-            valid_check_step[samples_of_step_cut_off: -samples_of_step_cut_off]
-
-    # Get average phase of pulse in step
-    samples_of_cut_off_result = len(first_step_cut_off)
-    avg_phase_first_step = 0
-    avg_phase_valid_check_step = 0
-    for i in range(samples_of_cut_off_result):
-        avg_phase_first_step += cmath.phase(first_step_cut_off[i])
-        avg_phase_valid_check_step += cmath.phase(valid_check_step_cut_off[i])
-    avg_phase_first_step /= samples_of_cut_off_result * 1.0
-    avg_phase_valid_check_step /= samples_of_cut_off_result * 1.0
-
-    if (avg_phase_first_step < 0):
-        avg_phase_first_step += 2 * math.pi
-    if (avg_phase_valid_check_step < 0):
-        avg_phase_valid_check_step += 2* math.pi
-
-    phase_gap_degree = abs(math.degrees(avg_phase_first_step) - \
-                            math.degrees(avg_phase_valid_check_step))
-    if (phase_gap_degree < VALID_CHECK):
-        is_valid = True
-        print('\n<< Valid >>')
-        print('Phase gap in degree: ' + str(phase_gap_degree) + '\n')
-    else:
-        is_valid = False
-        print('\n<< Unvalid >>')
-        print('Phase gap in degree: ' + str(phase_gap_degree) + '\n')
-
-    return is_valid
 
 #
 # Get start point of signal by detecting start pattern
@@ -225,7 +181,8 @@ def detect_end(src, start_point, steps, varying_data):
         print('\n<< Fail to detect end point >>')
         end_point = start_point + (steps) * SAMPLES_PER_STEP
 
-    print('Samples per step: ' + str(SAMPLES_PER_STEP) + '\n')
+    print('Samples per step: ' + str(SAMPLES_PER_STEP))
+    print('Samples in stage: ' + str(end_point - start_point) + '\n')
     src_target = src[start_point:end_point]
 
     if (varying_data is DataType.PHASE):
@@ -349,7 +306,7 @@ def get_phase(file_name, steps, file_idx):
 
     # Make binary file
     phase_list_np = np.asarray(phase_list, dtype=np.float32)
-    amp_list_np.tofile(dest)
+    phase_list_np.tofile(dest)
 
     # Make csv file by steps
     make_file_by_step(new_file_name)
