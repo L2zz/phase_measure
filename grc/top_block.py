@@ -3,9 +3,8 @@
 ##################################################
 # GNU Radio Python Flow Graph
 # Title: Top Block
-# Generated: Mon Nov 19 23:01:52 2018
+# Generated: Mon Dec 31 17:08:57 2018
 ##################################################
-
 
 from gnuradio import blocks
 from gnuradio import eng_notation
@@ -28,16 +27,22 @@ class top_block(gr.top_block):
         ##################################################
         # Blocks
         ##################################################
-        self.blocks_file_source_0_1_0 = blocks.file_source(gr.sizeof_gr_complex*1, '/home/l2zz/workspace/result/data', False)
-        self.blocks_file_sink_1_1 = blocks.file_sink(gr.sizeof_float*1, '/home/l2zz/workspace/result/amp', False)
+        self.blocks_file_source_0_1_0 = blocks.file_source(gr.sizeof_gr_complex*1, '/home/l2zz/phase/result/data', False)
+        self.blocks_file_source_0_0 = blocks.file_source(gr.sizeof_gr_complex*1, '/home/l2zz/phase/result/data', False)
+        self.blocks_file_sink_1_1 = blocks.file_sink(gr.sizeof_float*1, '/home/l2zz/phase/result/data_amp', False)
         self.blocks_file_sink_1_1.set_unbuffered(False)
+        self.blocks_file_sink_1_0 = blocks.file_sink(gr.sizeof_float*1, '/home/l2zz/phase/result/data_phase', False)
+        self.blocks_file_sink_1_0.set_unbuffered(False)
         self.blocks_complex_to_mag_0 = blocks.complex_to_mag(1)
+        self.blocks_complex_to_arg_1_0 = blocks.complex_to_arg(1)
 
         ##################################################
         # Connections
         ##################################################
-        self.connect((self.blocks_complex_to_mag_0, 0), (self.blocks_file_sink_1_1, 0))
-        self.connect((self.blocks_file_source_0_1_0, 0), (self.blocks_complex_to_mag_0, 0))
+        self.connect((self.blocks_complex_to_arg_1_0, 0), (self.blocks_file_sink_1_0, 0))    
+        self.connect((self.blocks_complex_to_mag_0, 0), (self.blocks_file_sink_1_1, 0))    
+        self.connect((self.blocks_file_source_0_0, 0), (self.blocks_complex_to_arg_1_0, 0))    
+        self.connect((self.blocks_file_source_0_1_0, 0), (self.blocks_complex_to_mag_0, 0))    
 
     def get_samp_rate(self):
         return self.samp_rate

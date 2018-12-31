@@ -178,11 +178,11 @@ def detect_end(src, start_point, steps, varying_data, file_idx):
         print('\n<< Fail to detect end point >>')
         end_point = start_point + (steps) * SAMPLES_PER_STEP[file_idx]
 
-    print('Samples per step: ' + str(SAMPLES_PER_STEP[file_idx]))
-    print('Samples in stage: ' + str(end_point - start_point) + '\n')
-
     # Padding one step for validation check
-    src_target = src[start_point:end_point+1]
+    end_point_padd = end_point + SAMPLES_PER_STEP[file_idx] 
+    print('Samples per step: ' + str(SAMPLES_PER_STEP[file_idx]))
+    print('Samples in stage: ' + str(end_point_padd - start_point) + '\n')
+    src_target = src[start_point:end_point_padd]
 
     if (varying_data is DataType.PHASE):
         src_target.tofile('../result/' + file_name + '_target0')
