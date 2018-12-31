@@ -5,11 +5,7 @@ import enum
 import csv
 import numpy as np
 
-#
-# VALID_CHECK: Valid phase difference in degree
-#
 STEP_CUT_OFF = 0.1
-VALID_CHECK = 3
 
 VARIATION_OF_START_SIGNAL_MIN = 0.2
 COMPARE_SAMPLE_INTERVAL = 10
@@ -184,7 +180,9 @@ def detect_end(src, start_point, steps, varying_data, file_idx):
 
     print('Samples per step: ' + str(SAMPLES_PER_STEP[file_idx]))
     print('Samples in stage: ' + str(end_point - start_point) + '\n')
-    src_target = src[start_point:end_point]
+
+    # Padding one step for validation check
+    src_target = src[start_point:end_point+1]
 
     if (varying_data is DataType.PHASE):
         src_target.tofile('../result/' + file_name + '_target0')
