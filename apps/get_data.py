@@ -160,7 +160,7 @@ def detect_end(src, start_point, steps, varying_data, file_idx):
                 state = SignalState.END
                 end_point = i
                 samples_in_target = end_point - start_point
-                SAMPLES_PER_STEP[file_idx] = (samples_in_target + SAMPLES_PER_STEP[file_idx] * 3) / (steps + 3)
+                SAMPLES_PER_STEP[file_idx] = (samples_in_target) / (steps)
                 break
     elif (varying_data is DataType.AMPLITUDE):
         for i in range(last_step_start_point, last_step_start_point + 2 * SAMPLES_PER_STEP[file_idx]):
@@ -173,7 +173,7 @@ def detect_end(src, start_point, steps, varying_data, file_idx):
                 state = SignalState.END
                 end_point = i
                 samples_in_target = end_point - start_point
-                SAMPLES_PER_STEP[file_idx] = (samples_in_target + SAMPLES_PER_STEP[file_idx] * 3) / (steps + 3)
+                SAMPLES_PER_STEP[file_idx] = (samples_in_target) / (steps)
                 break
 
     # Fail to detect end point, then guess the end point
@@ -336,8 +336,8 @@ if __name__ == '__main__':
     # Set parameter statically
     file_name = 'data'
     sample_rate = 2000000
-    steps1 = 99
-    steps2 = 49
+    steps1 = 100
+    steps2 = 50
 
     # Get Data
     get_data(file_name, sample_rate, steps1, steps2)
