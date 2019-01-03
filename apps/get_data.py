@@ -208,7 +208,7 @@ def detect_end(src, start_point, total_steps):
         end_point = start_point + (total_steps) * SAMPLES_PER_STEP
 
     # Padding one step for validation check
-    end_point_padd = end_point + SAMPLES_PER_STEP
+    end_point_padd = end_point + 2 * SAMPLES_PER_STEP
     print('Samples per step: ' + str(SAMPLES_PER_STEP))
     print('Samples in target: ' + str(end_point_padd - start_point) + '\n')
 
