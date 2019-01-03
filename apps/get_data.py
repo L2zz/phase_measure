@@ -198,7 +198,7 @@ def detect_end(src, start_point, total_steps):
             state = SignalState.END
             end_point = i
             samples_in_target = end_point - start_point
-            SAMPLES_PER_STEP = (samples_in_target) / (total_steps)
+            SAMPLES_PER_STEP = (samples_in_target + 3*SAMPLES_PER_STEP)/(total_steps + 3)
             break
 
     # Fail to detect end point, then guess the end point
