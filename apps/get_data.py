@@ -125,9 +125,11 @@ def get_phase(target, src_file_name, creation_flag):
 
         if (sample2_degree - sample1_degree) < 0:
             is_increase = False
+            print("Decrease")
             break
         else:
             is_increase = True
+            print("Increase")
             break
     # Get phase
     for idx, data in enumerate(target):
