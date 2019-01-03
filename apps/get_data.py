@@ -107,16 +107,18 @@ def get_phase(target, src_file_name, creation_flag):
     end_fluctuation_zone = 0
     # Check whether phase is increase or not
     for idx, data in enumerate(target):
-        sample1 = cmath.phase(data) - init_phase
+        sample1 = cmath.phase(data)
         if sample1 < 0:
             sample1 += 2 * math.pi
+        sample1 -= init_phase
         sample1_degree = math.degrees(sample1)
         if (sample1_degree < 0 + margin_to_evaluate_bound) or \
            (sample1_degree > 360 - margin_to_evaluate_bound): continue
 
-        sample2 = cmath.phase(target[idx + SAMPLES_PER_STEP]) - init_phase
+        sample2 = cmath.phase(target[idx + SAMPLES_PER_STEP])
         if sample2 < 0:
             sample2 += 2 * math.pi
+        sample2 -= init_phase
         sample2_degree = math.degrees(sample2)
         if (sample2_degree < 0 + margin_to_evaluate_bound) or \
            (sample2_degree > 360 - margin_to_evaluate_bound): continue
@@ -129,9 +131,10 @@ def get_phase(target, src_file_name, creation_flag):
             break
     # Get phase
     for idx, data in enumerate(target):
-        phase = cmath.phase(data) - init_phase
+        phase = cmath.phase(data)
         if phase < 0:
             phase += 2 * math.pi
+        phase -= init_phase
         phase_in_degree = math.degrees(phase)
         if idx >= end_fluctuation_zone:
             # Detect sample whose phase is about 360
@@ -179,7 +182,7 @@ def detect_end(src, start_point, total_steps):
     """
     global SAMPLES_PER_STEP
 
-    threshold_to_get_end_amplitude = 0.05   # Threshold to evaluate end pattern
+    threshold_to_get_end_amplitude = 0.03   # Threshold to evaluate end pattern
     compare_sample_interval = 10    # Number of samples in comparing interval
 
     # Get end point using start point and total steps
@@ -207,7 +210,7 @@ def detect_end(src, start_point, total_steps):
     # Padding one step for validation check
     end_point_padd = end_point + SAMPLES_PER_STEP
     print('Samples per step: ' + str(SAMPLES_PER_STEP))
-    print('Samples in stage: ' + str(end_point_padd - start_point) + '\n')
+    print('Samples in target: ' + str(end_point_padd - start_point) + '\n')
 
     return end_point_padd
 
@@ -222,18 +225,19 @@ def detect_start(src):
     """
     global SAMPLES_PER_STEP
 
-    min_variation_of_start_signal = 0.2     # Minimum amp difference in pattern
+    min_variation_of_start_signal = 0.03     # Minimum amp difference in pattern
     compare_sample_interval = 10    # Number of samples in comparing interval
+    begin_cut_off = 500000     # Number of samples to cutoff (about 1/4 of sample rate)
 
     # Detect start pattern
     state = SignalState.READY
-    for i in range(compare_sample_interval, len(src)):
+    for i in range(begin_cut_off + compare_sample_interval, len(src)):
         prev_amp = abs(src[i - compare_sample_interval])
         amp = abs(src[i])
         variation_of_amp = amp - prev_amp
 
         # Increase: READY->UP1, DOWN->UP2
-        if variation_of_amp > (min_variation_of_start_signal * amp):
+        if variation_of_amp > (min_variation_of_start_signal):
             if state is SignalState.READY:
                 state = SignalState.UP1
                 up1_idx = i
@@ -241,7 +245,7 @@ def detect_start(src):
                 state = SignalState.UP2
 
         # Decrease: UP1->DOWN, UP2->START
-        elif (-variation_of_amp) > (min_variation_of_start_signal * prev_amp):
+        elif (-variation_of_amp) > (min_variation_of_start_signal):
             if state is SignalState.UP1:
                 state = SignalState.DOWN
             elif state is SignalState.UP2:
@@ -257,8 +261,8 @@ def detect_start(src):
     # Print the result
     SAMPLES_PER_STEP = (start_point - up1_idx) / 3
     print('\n<< Success to detect start pattern >>')
-    print('Start point: ' + str(start_point) + '\n')
-    print('Samples per step: ' + str(SAMPLES_PER_STEP))
+    print('Start point: ' + str(start_point))
+    print('Samples per step: ' + str(SAMPLES_PER_STEP) + '\n')
 
     return start_point
 
@@ -312,7 +316,7 @@ if __name__ == '__main__':
     # Set parameters
     SOURCE_FILE_NAME = sys.argv[1]
     STEPS = [100, 50]
-    CREATION_FLAG = False
+    CREATION_FLAG = True
 
     # Get Data from source file
     get_data(SOURCE_FILE_NAME, STEPS, CREATION_FLAG)
