@@ -97,14 +97,11 @@ def get_phase(target, src_file_name, creation_flag):
     path = '../result/'
     dest_file_name = src_file_name + '_phase'
 
-    is_0 = False
-    is_360 = False
-    border_count = 0
     phase_list = []
     init_phase = cmath.phase(target[0])
     if init_phase < 0:
         init_phase += 2 * math.pi
-    end_fluctuation_zone = 0
+    init_phase_in_degree = math.degrees(init_phase)
     # Check whether phase is increase or not
     for idx, data in enumerate(target):
         sample1 = cmath.phase(data)
@@ -115,7 +112,7 @@ def get_phase(target, src_file_name, creation_flag):
         if (sample1_degree < 0 + margin_to_evaluate_bound) or \
            (sample1_degree > 360 - margin_to_evaluate_bound): continue
 
-        sample2 = cmath.phase(target[idx + SAMPLES_PER_STEP])
+        sample2 = cmath.phase(target[idx + 4*SAMPLES_PER_STEP])
         if sample2 < 0:
             sample2 += 2 * math.pi
         sample2 -= init_phase
@@ -125,43 +122,43 @@ def get_phase(target, src_file_name, creation_flag):
 
         if (sample2_degree - sample1_degree) < 0:
             is_increase = False
-            print("Decrease")
             break
         else:
             is_increase = True
-            print("Increase")
             break
     # Get phase
+    is_fluctuation = False
+    is_positive_border = False
+    is_negative_border = False
+    end_fluctuation_zone = 0
     for idx, data in enumerate(target):
         phase = cmath.phase(data)
         if phase < 0:
             phase += 2 * math.pi
-        phase -= init_phase
-        phase_in_degree = math.degrees(phase)
-        if idx >= end_fluctuation_zone:
-            # Detect sample whose phase is about 360
-            if phase_in_degree > 360 - margin_to_evaluate_bound:
-                is_360 = True
-            # Detect sample whose phase is about 0
-            if phase_in_degree < 0 + margin_to_evaluate_bound:
-                is_0 = True
+        phase_in_degree = math.degrees(phase) - init_phase_in_degree
+        # Detect sample whose phase is about 180
+        if phase_in_degree > 360 - init_phase_in_degree - margin_to_evaluate_bound:
+            is_positive_border = True
+        # Detect sample whose phase is about 0
+        if phase_in_degree < -(init_phase_in_degree) + margin_to_evaluate_bound:
+            is_negative_border = True
         # After detect 0 and 360
-        if is_0 and is_360:
-            is_0 = False
-            is_360 = False
-            end_fluctuation_zone = idx + 4 * SAMPLES_PER_STEP
-            border_count += 1
+        if is_positive_border and is_negative_border:
+            if not is_fluctuation:
+                end_fluctuation_zone = idx + 4*SAMPLES_PER_STEP
             # In Fluctuation regin
-        if idx < end_fluctuation_zone:
-            if is_increase and phase_in_degree < 0 + margin_to_evaluate_bound:
-                phase_in_degree += 360 * border_count
-            elif not is_increase and phase_in_degree > 360 + margin_to_evaluate_bound:
-                phase_in_degree -= 360 * border_count
-        else:
-            if is_increase:
-                phase_in_degree += 360 * border_count
+            if idx < end_fluctuation_zone:
+                if is_increase and \
+                   phase_in_degree < -(init_phase_in_degree)+margin_to_evaluate_bound:
+                    phase_in_degree += 360
+                elif not is_increase and \
+                     phase_in_degree > 360-init_phase_in_degree-margin_to_evaluate_bound:
+                    phase_in_degree -= 360 
             else:
-                phase_in_degree -= 360 * border_count
+                if is_increase:
+                    phase_in_degree += 360 
+                else:
+                    phase_in_degree -= 360
         phase_list.append(phase_in_degree)
 
     # Make binary file
