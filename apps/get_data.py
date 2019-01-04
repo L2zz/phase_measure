@@ -63,6 +63,8 @@ def make_csv_by_step(target, dest_csv_name, steps):
     start_idx_stage = 0
     end_idx_stage = 0
     for idx, step in enumerate(steps):
+        if idx == (len(steps) - 1):
+            step += 1
         csv_file = open('../csv/' + dest_csv_name + str(idx) + '.csv', 'w')
         csv_wr = csv.writer(csv_file, delimiter=',')
         start_idx_stage = end_idx_stage
