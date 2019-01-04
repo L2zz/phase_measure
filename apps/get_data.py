@@ -92,7 +92,7 @@ def get_phase(target, src_file_name, creation_flag):
     """
     global SAMPLES_PER_STEP
 
-    margin_to_evaluate_bound = 10     # Margin of boundary evaluation
+    margin_to_evaluate_bound = 20     # Margin of boundary evaluation
 
     path = '../result/'
     dest_file_name = src_file_name + '_phase'
@@ -145,7 +145,8 @@ def get_phase(target, src_file_name, creation_flag):
         # After detect 0 and 360
         if is_positive_border and is_negative_border:
             if not is_fluctuation:
-                end_fluctuation_zone = idx + 4*SAMPLES_PER_STEP
+                is_fluctuation = True
+                end_fluctuation_zone = idx + 2*SAMPLES_PER_STEP
             # In Fluctuation regin
             if idx < end_fluctuation_zone:
                 if is_increase and \
