@@ -54,6 +54,7 @@ def make_csv_by_step(target, dest_csv_name, steps):
     global SAMPLES_PER_STEP
 
     step_cut_off = 0.1 # Cut off ratio of measurement
+    fluctuation_degree = 180
 
     # Get the number of samples to cut off
     samples_of_step_cut_off = (int)(SAMPLES_PER_STEP * step_cut_off)
@@ -69,9 +70,15 @@ def make_csv_by_step(target, dest_csv_name, steps):
         for ith_step in range(step):
             start_idx_ith_step = start_idx_stage + ith_step * SAMPLES_PER_STEP
             end_idx_ith_step = start_idx_stage + (ith_step+1) * SAMPLES_PER_STEP
-            for data in range(start_idx_ith_step + samples_of_step_cut_off,
+            
+            init_data = target[start_idx_ith_step + samples_of_step_cut_off]
+            for data_idx in range(start_idx_ith_step + samples_of_step_cut_off,
                               end_idx_ith_step - samples_of_step_cut_off):
-                avg_value += target[data]
+                if init_data - target[data_idx] > fluctuation_degree:
+                    target[data_idx] += 360
+                elif -(init_data - target[data_idx]) > fluctuation_degree:
+                    target[data_idx] -= 360
+                avg_value += target[data_idx]
             avg_value /= samples_of_cut_off_result
             csv_wr.writerow([avg_value])
             avg_value = 0
@@ -92,74 +99,17 @@ def get_phase(target, src_file_name, creation_flag):
     """
     global SAMPLES_PER_STEP
 
-    margin_to_evaluate_bound = 20     # Margin of boundary evaluation
+    margin_to_evaluate_bound = 50     # Margin of boundary evaluation
 
     path = '../result/'
     dest_file_name = src_file_name + '_phase'
 
     phase_list = []
-    init_phase = cmath.phase(target[0])
-    if init_phase < 0:
-        init_phase += 2 * math.pi
-    init_phase_in_degree = math.degrees(init_phase)
-    # Check whether phase is increase or not
-    for idx, data in enumerate(target):
-        sample1 = cmath.phase(data)
-        if sample1 < 0:
-            sample1 += 2 * math.pi
-        sample1 -= init_phase
-        sample1_degree = math.degrees(sample1)
-        if (sample1_degree < 0 + margin_to_evaluate_bound) or \
-           (sample1_degree > 360 - margin_to_evaluate_bound): continue
-
-        sample2 = cmath.phase(target[idx + 4*SAMPLES_PER_STEP])
-        if sample2 < 0:
-            sample2 += 2 * math.pi
-        sample2 -= init_phase
-        sample2_degree = math.degrees(sample2)
-        if (sample2_degree < 0 + margin_to_evaluate_bound) or \
-           (sample2_degree > 360 - margin_to_evaluate_bound): continue
-
-        if (sample2_degree - sample1_degree) < 0:
-            is_increase = False
-            break
-        else:
-            is_increase = True
-            break
-    # Get phase
-    is_fluctuation = False
-    is_positive_border = False
-    is_negative_border = False
-    end_fluctuation_zone = 0
     for idx, data in enumerate(target):
         phase = cmath.phase(data)
         if phase < 0:
             phase += 2 * math.pi
-        phase_in_degree = math.degrees(phase) - init_phase_in_degree
-        # Detect sample whose phase is about 180
-        if phase_in_degree > 360 - init_phase_in_degree - margin_to_evaluate_bound:
-            is_positive_border = True
-        # Detect sample whose phase is about 0
-        if phase_in_degree < -(init_phase_in_degree) + margin_to_evaluate_bound:
-            is_negative_border = True
-        # After detect 0 and 360
-        if is_positive_border and is_negative_border:
-            if not is_fluctuation:
-                is_fluctuation = True
-                end_fluctuation_zone = idx + 2*SAMPLES_PER_STEP
-            # In Fluctuation regin
-            if idx < end_fluctuation_zone:
-                if is_increase and \
-                   phase_in_degree < -(init_phase_in_degree)+margin_to_evaluate_bound:
-                    phase_in_degree += 360
-                elif not is_increase and \
-                     phase_in_degree > 360-init_phase_in_degree-margin_to_evaluate_bound:
-                    phase_in_degree -= 360 
-            else:
-                if is_increase:
-                    phase_in_degree += 360 
-                else:
-                    phase_in_degree -= 360
+        phase_in_degree = math.degrees(phase)
         phase_list.append(phase_in_degree)
 
     # Make binary file
@@ -316,7 +266,7 @@ if __name__ == '__main__':
     # Set parameters
     SOURCE_FILE_NAME = sys.argv[1]
     STEPS = [100, 50]
-    CREATION_FLAG = True
+    CREATION_FLAG = False
 
     # Get Data from source file
     get_data(SOURCE_FILE_NAME, STEPS, CREATION_FLAG)
