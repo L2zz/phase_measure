@@ -25,7 +25,6 @@ class SignalState(enum.Enum):
                |_____ or _____| END                  |_____
                    < Phase >                    <Amplitude>
     """
-
     READY = 0
     UP1 = 1
     DOWN = 2
@@ -37,7 +36,6 @@ class DataType(enum.Enum):
     """
     Set target data types to enum
     """
-
     PHASE = 0
     AMPLITUDE = 1
 
@@ -72,10 +70,10 @@ def make_csv_by_step(target, dest_csv_name, steps):
         for ith_step in range(step):
             start_idx_ith_step = start_idx_stage + ith_step * SAMPLES_PER_STEP
             end_idx_ith_step = start_idx_stage + (ith_step+1) * SAMPLES_PER_STEP
-            
+
             init_data = target[start_idx_ith_step + samples_of_step_cut_off]
             for data_idx in range(start_idx_ith_step + samples_of_step_cut_off,
-                              end_idx_ith_step - samples_of_step_cut_off):
+                                  end_idx_ith_step - samples_of_step_cut_off):
                 if init_data - target[data_idx] > fluctuation_degree:
                     target[data_idx] += 360
                 elif -(init_data - target[data_idx]) > fluctuation_degree:
@@ -101,13 +99,11 @@ def get_phase(target, src_file_name, creation_flag):
     """
     global SAMPLES_PER_STEP
 
-    margin_to_evaluate_bound = 50     # Margin of boundary evaluation
-
     path = '../result/'
     dest_file_name = src_file_name + '_phase'
 
     phase_list = []
-    for idx, data in enumerate(target):
+    for data in enumerate(target):
         phase = cmath.phase(data)
         if phase < 0:
             phase += 2 * math.pi
