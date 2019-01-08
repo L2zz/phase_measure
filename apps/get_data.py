@@ -103,7 +103,7 @@ def get_phase(target, src_file_name, creation_flag):
     dest_file_name = src_file_name + '_phase'
 
     phase_list = []
-    for data in enumerate(target):
+    for data in target:
         phase = cmath.phase(data)
         if phase < 0:
             phase += 2 * math.pi
