@@ -34,20 +34,20 @@ class SignalState(enum.Enum):
 
 class DataType(enum.Enum):
     """
-    Set target data types to enum
+    Set target data types to enum.
     """
     PHASE = 0
     AMPLITUDE = 1
 
 def make_csv_by_step(target, dest_csv_name, steps):
     """
-    Make csv file using target with corresponding steps
+    Make csv file using target with corresponding steps.
     Args:
         target: Data array from target
         dest_csv_name: Prefix of name to save result file
-        steps: The number of steps in each stages.
+        steps: The number of steps in each stages
     Outputs:
-        (dest_csv_name)_(stage#).csv: Result of phase measurement from each stages.
+        (dest_csv_name)_(stage#).csv: Result of phase measurement from each stages
     """
     global SAMPLES_PER_STEP
 
@@ -86,14 +86,14 @@ def make_csv_by_step(target, dest_csv_name, steps):
 
 def get_phase(target, src_file_name, creation_flag):
     """
-    Make binary/csv files to save phase in degree
+    Make binary/csv files to save phase in degree.
     Args:
         target: Data array from target
         src_file_name: Name of source file
-        creation_flag: Flag to determine whether save files during process.
+        creation_flag: Flag to determine whether save files during process
     Outpus:
         ** If creation_flag is True, then below file is created **
-        (dest_file_name): Target data file from source file.
+        (dest_file_name): Target data file from source file
     Returns:
         phase_list_np: Phase array from target
     """
@@ -119,14 +119,14 @@ def get_phase(target, src_file_name, creation_flag):
 
 def detect_end(src, start_point, total_steps):
     """
-    Get end point of stage with varying data
+    Get end point of stage with varying data.
     If end point is not detected, then use samples per step obtained before.
     Args:
         src: Data array from source file
         start_point: Start index of data we measure
         total_steps: The number of all steps in measurement
     Returns:
-        end_point_padd:
+        end_point_padd: Index of end point after padding
     """
     global SAMPLES_PER_STEP
 
@@ -164,8 +164,8 @@ def detect_end(src, start_point, total_steps):
 
 def detect_start(src):
     """
-    Get start point of signal by detecting start pattern
-    Signal states are described above class named SignalState
+    Get start point of signal by detecting start pattern.
+    Signal states are described above class named SignalState.
     Args:
         src: Data array from source file
     Returns:
@@ -216,12 +216,12 @@ def detect_start(src):
 
 def detect_target(src_file_name, target_file_name, steps, creation_flag):
     """
-    Get start point(sample index) and end point of signal
+    Get start point(sample index) and end point of signal.
     Args:
         src_file_name: Name of source file
         target_file_name: Name of target file
-        steps: The number of steps in each stages.
-        creation_flag: Flag to determine whether save files during process.
+        steps: The number of steps in each stages
+        creation_flag: Flag to determine whether save files during process
     Outputs:
         ** If creation_flag is True, then below file is created **
         (target_file): Target data file from source file
@@ -245,12 +245,12 @@ def get_data(src_file_name, steps, creation_flag):
     Extract target data from source file and get phase/amplitude from target.
     Args:
         src_file_name: Name of source file
-        steps: The number of steps in each stages.
-        creation_flag: Flag to determine whether save files during process.
+        steps: The number of steps in each stages
+        creation_flag: Flag to determine whether save files during process
     Outputs:
-        (dest_csv_name)_(stage#).csv: Result of phase measurement from each stages.
+        (dest_csv_name)_(stage#).csv: Result of phase measurement from each stages
         ** If creation_flag is True, then below file is created **
-        (target_file_name): Target data file from source file.
+        (target_file_name): Target data file from source file
     """
     target_file_name = src_file_name + '_target'
     dest_csv_name = src_file_name
